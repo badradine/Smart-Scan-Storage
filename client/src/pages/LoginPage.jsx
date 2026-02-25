@@ -6,9 +6,9 @@ import { useToast } from '../context/ToastContext';
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // ← AJOUTÉ
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  // ✅ Ajout d'un état pour le message d'erreur de connexion
   const [loginError, setLoginError] = useState('');
 
   const { login } = useAuth();
@@ -35,7 +35,6 @@ function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // ✅ Réinitialiser le message d'erreur à chaque tentative
     setLoginError('');
     
     if (!validateForm()) return;
@@ -47,14 +46,15 @@ function LoginPage() {
     if (result.success) {
       navigate('/');
     } else {
-      // ✅ Afficher l'erreur DANS LA PAGE (une seule fois)
       setLoginError(result.error || 'Email ou mot de passe incorrect');
-      
-      // ✅ Optionnel: garder le toast si vous voulez
-      // showToastError(result.error);
     }
     
     setLoading(false);
+  };
+
+  // Fonction pour basculer l'affichage du mot de passe
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -74,7 +74,7 @@ function LoginPage() {
         {/* Formulaire */}
         <div className="card p-8">
           
-          {/* ✅ Message d'erreur unique pour les identifiants incorrects */}
+          {/* Message d'erreur */}
           {loginError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600 text-center">
@@ -92,7 +92,6 @@ function LoginPage() {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  // ✅ Effacer l'erreur quand l'utilisateur commence à taper
                   setLoginError('');
                 }}
                 className={`form-input ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
@@ -103,18 +102,39 @@ function LoginPage() {
 
             <div>
               <label htmlFor="password" className="form-label">Mot de passe</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  // ✅ Effacer l'erreur quand l'utilisateur commence à taper
-                  setLoginError('');
-                }}
-                className={`form-input ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setLoginError('');
+                  }}
+                  className={`form-input pr-12 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
+                  placeholder="••••••••"
+                />
+                {/* Bouton pour afficher/masquer le mot de passe */}
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                  tabIndex="-1"
+                >
+                  {showPassword ? (
+                    /* Icône œil barré (mot de passe visible) */
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    /* Icône œil (mot de passe masqué) */
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
 
@@ -143,9 +163,6 @@ function LoginPage() {
             </p>
           </div>
         </div>
-
-        {/* ✅ SECTION SUPPRIMÉE - Les données de test ont été enlevées */}
-        
       </div>
     </div>
   );
