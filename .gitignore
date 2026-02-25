@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Database
+*.db
+*.sqlite
+server/data/
+
+# Uploads
+server/uploads/
+uploads/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Cache
+.cache/
+.eslintcache
+.parcel-cache/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# TypeScript
+*.tsbuildinfo
+node_modules/
+client/node_modules/
+server/node_modules/
+.env
+.DS_Store
+dist/
+build/
