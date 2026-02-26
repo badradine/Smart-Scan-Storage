@@ -160,7 +160,7 @@ function RegisterPage() {
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              Уже есть аккаунт?{' '}
+              Уже есть аккаунт??{' '}
               <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
                 Войти
               </Link>
