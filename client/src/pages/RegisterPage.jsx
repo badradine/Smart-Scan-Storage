@@ -21,23 +21,23 @@ function RegisterPage() {
     const newErrors = {};
     
     if (!formData.name.trim()) {
-      newErrors.name = 'Имя обязательно';
+      newErrors.name = 'Nom requis';
     }
     
     if (!formData.email) {
-      newErrors.email = 'Email обязателен';
+      newErrors.email = 'Email requis';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Некорректный формат email';
+      newErrors.email = 'Format email incorrect';
     }
     
     if (!formData.password) {
-      newErrors.password = 'Пароль обязателен';
+      newErrors.password = 'Mot de passe requis';
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Пароль должен содержать минимум 6 символов';
+      newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
     }
     
     if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Пароли не совпадают';
+      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
     }
     
     setErrors(newErrors);
@@ -72,22 +72,22 @@ function RegisterPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Логотип */}
+        {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-4">
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Регистрация</h1>
-          <p className="text-gray-500 mt-2">Создайте аккаунт для управления документами</p>
+          <h1 className="text-2xl font-bold text-gray-900">Inscription</h1>
+          <p className="text-gray-500 mt-2">Créez un compte pour gérer vos documents</p>
         </div>
 
-        {/* Форма */}
+        {/* Formulaire */}
         <div className="card p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="name" className="form-label">Имя</label>
+              <label htmlFor="name" className="form-label">Nom</label>
               <input
                 type="text"
                 id="name"
@@ -95,7 +95,7 @@ function RegisterPage() {
                 value={formData.name}
                 onChange={handleChange}
                 className={`form-input ${errors.name ? 'border-red-500 focus:ring-red-500' : ''}`}
-                placeholder="Ваше имя"
+                placeholder="Votre nom"
               />
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
             </div>
@@ -109,13 +109,13 @@ function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
                 className={`form-input ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
-                placeholder="example@email.com"
+                placeholder="exemple@email.com"
               />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
 
             <div>
-              <label htmlFor="password" className="form-label">Пароль</label>
+              <label htmlFor="password" className="form-label">Mot de passe</label>
               <input
                 type="password"
                 id="password"
@@ -123,13 +123,13 @@ function RegisterPage() {
                 value={formData.password}
                 onChange={handleChange}
                 className={`form-input ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
-                placeholder="Минимум 6 символов"
+                placeholder="Minimum 6 caractères"
               />
               {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="form-label">Подтверждение пароля</label>
+              <label htmlFor="confirmPassword" className="form-label">Confirmer le mot de passe</label>
               <input
                 type="password"
                 id="confirmPassword"
@@ -137,7 +137,7 @@ function RegisterPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 className={`form-input ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : ''}`}
-                placeholder="Повторите пароль"
+                placeholder="Répétez votre mot de passe"
               />
               {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
             </div>
@@ -150,19 +150,19 @@ function RegisterPage() {
               {loading ? (
                 <>
                   <div className="loading-spinner w-5 h-5"></div>
-                  Регистрация...
+                  Inscription en cours...
                 </>
               ) : (
-                'Зарегистрироваться'
+                'S\'inscrire'
               )}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              Уже есть аккаунт?{' '}
+              Déjà inscrit ?{' '}
               <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
-                Войти
+                Se connecter
               </Link>
             </p>
           </div>
