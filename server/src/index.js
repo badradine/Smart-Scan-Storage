@@ -1,20 +1,24 @@
+// Fichier: server/src/index.js
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Chargement des variables d'environnement
 dotenv.config();
 
-// Import des routes
-import authRoutes from './routes/auth.js';
+// Import des routes existantes
 import documentRoutes from './routes/documents.js';
 import searchRoutes from './routes/search.js';
 import adminRoutes from './routes/admin.js';
 
-// Initialisation de la base de données
+// Import DB
 import { initDatabase, getDatabase } from './config/database.js';
+
+// Import Auth (nouveaux fichiers)
+import { AuthService } from './services/auth.service.js';
+import { AuthController } from './controllers/auth.controller.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,156 +26,118 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialisation de la base de données SQLite
+// Initialisation DB
 initDatabase();
+const db = getDatabase();
 
-// Middleware
+// Initialisation Auth avec injection de dépendances
+const authService = new AuthService(db);
+const authController = new AuthController(authService);
+
+// Middleware d'authentification AVEC LOGS
+export const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  console.log('📨 Auth Header reçu:', authHeader);
+  
+  const token = authHeader && authHeader.split(' ')[1];
+  console.log('🔑 Token extrait:', token ? token.substring(0, 30) + '...' : 'AUCUN');
+  
+  if (!token) {
+    console.log('❌ ERREUR: Token manquant');
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Token manquant' 
+    });
+  }
+
+  try {
+    const user = authService.verifyAccessToken(token);
+    console.log('👤 Utilisateur trouvé:', user ? user.email : 'NULL');
+    
+    if (!user) {
+      console.log('❌ ERREUR: Token invalide ou expiré');
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Token invalide ou expiré' 
+      });
+    }
+
+    console.log('✅ Authentification réussie pour:', user.email);
+    req.user = user;
+    next();
+  } catch (error) {
+    console.log('❌ ERREUR JWT:', error.message);
+    return res.status(403).json({ 
+      success: false, 
+      error: 'Token invalide' 
+    });
+  }
+};
+
+// Middleware CORS
 app.use(cors({
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  credentials: true
 }));
 
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Middleware pour logger les requêtes
+// Logger
 app.use((req, res, next) => {
   console.log(`📨 ${req.method} ${req.url}`);
   next();
 });
 
-// Fichiers statiques pour les documents uploadés
+// Static files
 const uploadDir = path.join(__dirname, process.env.UPLOAD_DIR || '../uploads');
 app.use('/uploads', express.static(uploadDir));
 
-// Routes API
-app.use('/api/auth', authRoutes);
-app.use('/api/documents', documentRoutes);
-app.use('/api/search', searchRoutes);
-app.use('/api/admin', adminRoutes);
+// Routes d'authentification
+app.post('/api/auth/login', authController.login);
+app.post('/api/auth/refresh', authController.refresh);
+app.post('/api/auth/logout', authController.logout);
+app.post('/api/auth/logout-all', authenticateToken, authController.logoutAll);
+app.get('/api/auth/me', authenticateToken, authController.me);
 
-// Route de test pour vérifier les rôles (CORRIGÉE)
-app.get('/api/debug/roles', (req, res) => {
-  try {
-    const db = getDatabase(); // ← CORRIGÉ: utilisation directe de getDatabase
-    const users = db.prepare(`
-      SELECT id, email, role, name 
-      FROM users 
-      ORDER BY role, email
-    `).all();
-    
-    res.json({
-      success: true,
-      data: users,
-      total: users.length
-    });
-  } catch (error) {
-    console.error('Erreur debug roles:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
-  }
-});
+// Routes existantes (protégées)
+app.use('/api/documents', authenticateToken, documentRoutes);
+app.use('/api/search', authenticateToken, searchRoutes);
+app.use('/api/admin', authenticateToken, adminRoutes);
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    message: 'Smart Scan Storage API fonctionne',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development'
-  });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Route pour vérifier la version de l'API
-app.get('/api/version', (req, res) => {
-  res.json({
-    version: '1.0.0',
-    name: 'Smart Scan Storage API',
-    features: [
-      'Authentification JWT',
-      'RBAC (Rôles: admin, manager, user)',
-      'OCR pour les images',
-      'Support PDF et documents Word',
-      'Recherche full-text',
-      'Administration utilisateurs'
-    ]
-  });
-});
+// Nettoyage automatique des tokens expirés toutes les heures
+setInterval(() => {
+  authService.cleanup();
+  console.log('🧹 Nettoyage des tokens expirés effectué');
+}, 60 * 60 * 1000); // 1 heure
 
-// Gestion des erreurs 404
+// 404
 app.use((req, res) => {
-  res.status(404).json({ 
-    success: false,
-    error: 'Route non trouvée',
-    message: `La route ${req.method} ${req.url} n'existe pas`
-  });
+  res.status(404).json({ success: false, error: 'Route non trouvée' });
 });
 
-// Gestionnaire global d'erreurs
+// Error handler
 app.use((err, req, res, next) => {
   console.error('❌ Erreur serveur:', err);
-  
-  // Erreur de validation
-  if (err.name === 'ValidationError') {
-    return res.status(400).json({ 
-      success: false,
-      error: 'Erreur de validation',
-      message: err.message 
-    });
-  }
-  
-  // Erreur JWT
-  if (err.name === 'UnauthorizedError') {
-    return res.status(401).json({ 
-      success: false,
-      error: 'Non autorisé',
-      message: 'Token invalide ou expiré'
-    });
-  }
-  
-  // Erreur de base de données
-  if (err.code === 'SQLITE_ERROR' || err.code === 'SQLITE_CONSTRAINT') {
-    return res.status(500).json({ 
-      success: false,
-      error: 'Erreur base de données',
-      message: process.env.NODE_ENV === 'development' ? err.message : 'Erreur lors de l\'accès aux données'
-    });
-  }
-  
-  // Erreur par défaut
   res.status(500).json({ 
-    success: false,
-    error: 'Erreur interne du serveur',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Une erreur est survenue'
+    success: false, 
+    error: 'Erreur interne du serveur' 
   });
 });
 
-// Démarrage du serveur
 app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║     Smart Scan Storage - Serveur démarré                   ║
 ╠════════════════════════════════════════════════════════════╣
 ║  📍 API: http://localhost:${PORT}/api                      ║
-║  📁 Uploads: ${uploadDir}                                   ║
-║  🔧 Mode: ${process.env.NODE_ENV || 'development'}                         ║
-╠════════════════════════════════════════════════════════════╣
-║  📋 Routes disponibles:                                    ║
-║     • /api/auth         - Authentification                 ║
-║     • /api/documents    - Gestion documents                ║
-║     • /api/search       - Recherche                        ║
-║     • /api/admin        - Administration (admin only)      ║
-║     • /api/health       - État du serveur                  ║
-║     • /api/version      - Version API                      ║
-║     • /api/debug/roles  - Debug rôles (admin only)         ║
-╠════════════════════════════════════════════════════════════╣
-║  👥 Rôles disponibles: admin, manager, user                ║
-║  🔐 Authentification: JWT                                   ║
+║  🔐 Auth: JWT + Refresh Tokens (15m / 7j)                  ║
+║  🏗️  Architecture: Service + Repository + Controller        ║
 ╚════════════════════════════════════════════════════════════╝
   `);
 });
