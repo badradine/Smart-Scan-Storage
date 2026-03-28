@@ -15,24 +15,49 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('accessToken');
     const savedUser = localStorage.getItem('user');
     
+    console.log('🔍 [Auth] checkAuth - token:', !!token);
+    console.log('🔍 [Auth] checkAuth - savedUser:', !!savedUser);
+    
     if (!token) {
+      console.log('🔍 [Auth] Pas de token, utilisateur non connecté');
       setLoading(false);
       return;
     }
 
+    // Utiliser l'utilisateur sauvegardé immédiatement
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        const userObj = JSON.parse(savedUser);
+        console.log('🔍 [Auth] Utilisateur sauvegardé trouvé:', userObj.email);
+        setUser(userObj);
+      } catch (e) {
+        console.error('Erreur parsing savedUser:', e);
+      }
     }
 
+    // Vérifier avec l'API en arrière-plan
     try {
+      console.log('🔍 [Auth] Vérification du token avec /auth/me');
       const response = await api.get('/auth/me');
       if (response.data.success) {
+        console.log('🔍 [Auth] Token valide, utilisateur:', response.data.data.user.email);
         setUser(response.data.data.user);
         localStorage.setItem('user', JSON.stringify(response.data.data.user));
+      } else {
+        console.log('🔍 [Auth] Token invalide');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        setUser(null);
       }
     } catch (err) {
-      console.error('Auth check error:', err);
-      // Ne pas déconnecter immédiatement - l'intercepteur gérera le refresh
+      console.log('🔍 [Auth] Erreur /auth/me:', err.response?.status);
+      // Si l'API échoue mais qu'on a un utilisateur sauvegardé, on le garde
+      if (!savedUser) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -50,6 +75,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem('user', JSON.stringify(user));
         
         setUser(user);
+        console.log('🔍 [Auth] Login réussi, utilisateur:', user.email);
         return { success: true };
       }
       return { success: false, error: response.data.error };
@@ -76,6 +102,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setUser(null);
+    console.log('🔍 [Auth] Déconnexion');
   }, []);
 
   const logoutAll = useCallback(async () => {

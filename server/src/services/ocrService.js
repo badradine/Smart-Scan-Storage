@@ -3,8 +3,8 @@ import path from 'path';
 import fs from 'fs';
 
 /**
- * OCR Service - сервис для распознавания текста в изображениях
- * Использует Tesseract.js для извлечения текста из сканов документов
+ * OCR Service - Service de reconnaissance de texte dans les images
+ * Utilise Tesseract.js pour extraire le texte des scans de documents
  */
 class OCRService {
   constructor() {
@@ -12,37 +12,35 @@ class OCRService {
   }
 
   /**
-   * Создание рабочего процесса Tesseract
+   * Création d'un worker Tesseract
    */
   async createWorker() {
-    const worker = await Tesseract.createWorker('rus+eng');
+    const worker = await Tesseract.createWorker('fra+eng'); // Français et anglais
     return worker;
   }
 
   /**
-   * Распознавание текста в изображении
-   * @param {string} imagePath - Путь к изображению
-   * @param {Function} onProgress - Коллбэк для отслеживания прогресса
-   * @returns {Promise<object>} Результат распознавания
+   * Reconnaissance de texte dans une image
+   * @param {string} imagePath - Chemin de l'image
+   * @returns {Promise<object>} Résultat de la reconnaissance
    */
-  async recognizeText(imagePath, onProgress = () => {}) {
+  async recognizeText(imagePath) {
     try {
-      // Проверка существования файла
+      // Vérifier l'existence du fichier
       if (!fs.existsSync(imagePath)) {
-        throw new Error(`Файл не найден: ${imagePath}`);
+        throw new Error(`Fichier non trouvé: ${imagePath}`);
       }
 
+      console.log(`🔍 OCR en cours pour: ${path.basename(imagePath)}`);
+      
       const worker = await this.createWorker();
       
-      const result = await worker.recognize(imagePath, {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            onProgress(Math.round(m.progress * 100));
-          }
-        }
-      });
+      // ✅ CORRIGÉ : Pas de callback pour éviter l'erreur de clonage
+      const result = await worker.recognize(imagePath);
 
       await worker.terminate();
+
+      console.log(`✅ OCR terminé pour: ${path.basename(imagePath)}`);
 
       return {
         success: true,
@@ -55,7 +53,7 @@ class OCRService {
         })) || []
       };
     } catch (error) {
-      console.error('Ошибка OCR:', error);
+      console.error('❌ Erreur OCR:', error.message);
       return {
         success: false,
         error: error.message,
@@ -66,10 +64,10 @@ class OCRService {
   }
 
   /**
-   * Извлечение метаданных из текста
-   * Ищет даты, суммы денег, имена и другие структурированные данные
-   * @param {string} text - Текст для анализа
-   * @returns {object} Извлечённые метаданные
+   * Extraction de métadonnées à partir du texte
+   * Recherche dates, montants, emails et autres données structurées
+   * @param {string} text - Texte à analyser
+   * @returns {object} Métadonnées extraites
    */
   extractMetadata(text) {
     const metadata = {
@@ -83,12 +81,11 @@ class OCRService {
 
     if (!text) return metadata;
 
-    // Поиск дат в различных форматах
+    // Recherche de dates (format français)
     const datePatterns = [
-      /\b(\d{1,2}[\.\-\/]\d{1,2}[\.\-\/]\d{2,4})\b/g,  // DD.MM.YYYY или DD-MM-YYYY
-      /\b(\d{4}[\.\-\/]\d{1,2}[\.\-\/]\d{1,2})\b/g,    // YYYY-MM-DD
-      /\b(\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4})\b/gi,  // русские названия месяцев
-      /\b(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/gi  // английские названия месяцев
+      /\b(\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{2,4})\b/g,  // DD/MM/YYYY
+      /\b(\d{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s+\d{4})\b/gi, // français
+      /\b(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/gi // anglais
     ];
 
     datePatterns.forEach(pattern => {
@@ -98,51 +95,51 @@ class OCRService {
       }
     });
 
-    // Поиск сумм денежных средств
+    // Recherche de montants
     const amountPatterns = [
-      /[\d\s,.]+\s*(?:руб(?:лей)?|₽|RUB|USD|EUR|€|£|$)/gi,
-      /[\d\s,.]+(?:руб(?:лей)?|₽|RUB|USD|EUR|€|£|$)/gi
+      /[\d\s,.]+\s*(?:€|EUR|euros?|$|USD|£|GBP)/gi,
+      /(?:€|EUR|euros?|$|USD|£|GBP)\s*[\d\s,.]+\b/gi
     ];
 
     amountPatterns.forEach(pattern => {
       const matches = text.match(pattern);
       if (matches) {
-        // Фильтруем дубликаты и очищаем
         const uniqueAmounts = [...new Set(matches.map(m => m.trim()))];
         metadata.amounts.push(...uniqueAmounts);
       }
     });
 
-    // Поиск email адресов
+    // Recherche d'emails
     const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
     const emails = text.match(emailPattern);
     if (emails) {
       metadata.emails.push(...[...new Set(emails)]);
     }
 
-    // Поиск телефонных номеров
-    const phonePattern = /(?:\+?7|8)?[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}/g;
+    // Recherche de téléphones (format français)
+    const phonePattern = /(?:\+33|0)[1-9](?:\s?\d{2}){4}/g;
     const phones = text.match(phonePattern);
     if (phones) {
       metadata.phones.push(...[...new Set(phones)]);
     }
 
-    // Поиск ключевых слов (упрощённый алгоритм)
+    // Recherche de mots-clés
     const words = text.toLowerCase().split(/\s+/);
     const stopWords = new Set([
-      'и', 'в', 'на', 'с', 'по', 'для', 'от', 'о', 'к', 'за', 'из', 'что', 'как', 'это',
-      'the', 'and', 'in', 'to', 'of', 'is', 'it', 'for', 'with', 'on', 'at', 'by'
+      'le', 'la', 'les', 'un', 'une', 'des', 'et', 'ou', 'dans', 'pour', 'par',
+      'avec', 'sans', 'sur', 'sous', 'entre', 'mais', 'donc', 'car', 'ce', 'cet',
+      'cette', 'ces', 'mon', 'ton', 'son', 'notre', 'votre', 'leur'
     ]);
 
     const wordFrequency = {};
     words.forEach(word => {
-      const cleaned = word.replace(/[^а-яёa-z]/gi, '');
+      const cleaned = word.replace(/[^a-zéèêëàâäôöûüç]/gi, '');
       if (cleaned.length > 3 && !stopWords.has(cleaned)) {
         wordFrequency[cleaned] = (wordFrequency[cleaned] || 0) + 1;
       }
     });
 
-    // Топ-10 ключевых слов
+    // Top 10 mots-clés
     metadata.keywords = Object.entries(wordFrequency)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
@@ -152,14 +149,15 @@ class OCRService {
   }
 
   /**
-   * Полная обработка изображения с OCR и извлечением метаданных
-   * @param {string} imagePath - Путь к изображению
-   * @param {Function} onProgress - Коллбэк прогресса
-   * @returns {Promise<object>} Полный результат обработки
+   * Traitement complet d'une image avec OCR et extraction de métadonnées
+   * @param {string} imagePath - Chemin de l'image
+   * @returns {Promise<object>} Résultat complet
    */
-  async processImage(imagePath, onProgress = () => {}) {
-    // Распознавание текста
-    const ocrResult = await this.recognizeText(imagePath, onProgress);
+  async processImage(imagePath) {
+    console.log(`📷 Traitement OCR de: ${path.basename(imagePath)}`);
+    
+    // Reconnaissance du texte
+    const ocrResult = await this.recognizeText(imagePath);
     
     if (!ocrResult.success) {
       return {
@@ -168,7 +166,7 @@ class OCRService {
       };
     }
 
-    // Извлечение метаданных
+    // Extraction des métadonnées
     const metadata = this.extractMetadata(ocrResult.text);
 
     return {
@@ -182,9 +180,9 @@ class OCRService {
   }
 
   /**
-   * Склеивание нескольких страниц в логический документ
-   * @param {Array<string>} pagePaths - Массив путей к страницам
-   * @returns {Promise<object>} Результат склеивания
+   * Assemblage de plusieurs pages en un document logique
+   * @param {Array<string>} pagePaths - Tableau des chemins de pages
+   * @returns {Promise<object>} Résultat de l'assemblage
    */
   async stitchPages(pagePaths) {
     const results = [];
@@ -198,10 +196,9 @@ class OCRService {
     };
 
     for (let i = 0; i < pagePaths.length; i++) {
-      const result = await this.processImage(pagePaths[i], (progress) => {
-        const overallProgress = Math.round(((i / pagePaths.length) + (progress / 100 / pagePaths.length)) * 100);
-        console.log(`Обработка страницы ${i + 1}/${pagePaths.length}: ${overallProgress}%`);
-      });
+      console.log(`📄 Traitement page ${i + 1}/${pagePaths.length}`);
+      
+      const result = await this.processImage(pagePaths[i]);
 
       if (result.success) {
         results.push({
@@ -210,9 +207,9 @@ class OCRService {
           metadata: result.metadata
         });
 
-        fullText += `\n--- Страница ${i + 1} ---\n${result.text}`;
+        fullText += `\n--- Page ${i + 1} ---\n${result.text}`;
 
-        // Объединение метаданных
+        // Fusion des métadonnées
         Object.keys(allMetadata).forEach(key => {
           if (result.metadata[key]) {
             allMetadata[key] = [...allMetadata[key], ...result.metadata[key]];
@@ -221,7 +218,7 @@ class OCRService {
       }
     }
 
-    // Удаление дубликатов из метаданных
+    // Suppression des doublons
     Object.keys(allMetadata).forEach(key => {
       allMetadata[key] = [...new Set(allMetadata[key])];
     });
@@ -235,6 +232,6 @@ class OCRService {
   }
 }
 
-// Экспорт единственного экземпляра сервиса
+// Export de l'instance unique
 const ocrService = new OCRService();
 export default ocrService;

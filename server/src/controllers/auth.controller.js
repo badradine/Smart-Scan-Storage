@@ -3,6 +3,40 @@ export class AuthController {
     this.authService = authService;
   }
 
+  // POST /api/auth/register
+  register = async (req, res) => {
+    try {
+      const { email, password, name } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email et mot de passe requis'
+        });
+      }
+
+      const result = await this.authService.register(email, password, name);
+      
+      if (!result) {
+        return res.status(400).json({
+          success: false,
+          error: 'Erreur lors de l\'inscription'
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('Register error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur serveur'
+      });
+    }
+  };
+
   // POST /api/auth/login
   login = async (req, res) => {
     try {
@@ -96,7 +130,7 @@ export class AuthController {
     }
   };
 
-  // POST /api/auth/logout-all (optionnel - déconnexion de tous les appareils)
+  // POST /api/auth/logout-all
   logoutAll = (req, res) => {
     try {
       const userId = req.user.id;

@@ -16,7 +16,7 @@ import adminRoutes from './routes/admin.js';
 // Import DB
 import { initDatabase, getDatabase } from './config/database.js';
 
-// Import Auth (nouveaux fichiers)
+// Import Auth
 import { AuthService } from './services/auth.service.js';
 import { AuthController } from './controllers/auth.controller.js';
 
@@ -30,20 +30,20 @@ const PORT = process.env.PORT || 3001;
 initDatabase();
 const db = getDatabase();
 
-// Initialisation Auth avec injection de dépendances
+// Initialisation Auth
 const authService = new AuthService(db);
 const authController = new AuthController(authService);
 
-// Middleware d'authentification AVEC LOGS
+// Middleware d'authentification avec logs détaillés
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  console.log('📨 Auth Header reçu:', authHeader);
+  console.log('📨 [AUTH] Header reçu:', authHeader);
   
   const token = authHeader && authHeader.split(' ')[1];
-  console.log('🔑 Token extrait:', token ? token.substring(0, 30) + '...' : 'AUCUN');
+  console.log('🔑 [AUTH] Token extrait:', token ? token.substring(0, 50) + '...' : 'AUCUN');
   
   if (!token) {
-    console.log('❌ ERREUR: Token manquant');
+    console.log('❌ [AUTH] Token manquant');
     return res.status(401).json({ 
       success: false, 
       error: 'Token manquant' 
@@ -52,21 +52,21 @@ export const authenticateToken = (req, res, next) => {
 
   try {
     const user = authService.verifyAccessToken(token);
-    console.log('👤 Utilisateur trouvé:', user ? user.email : 'NULL');
+    console.log('👤 [AUTH] Utilisateur trouvé:', user ? user.email : 'NULL');
     
     if (!user) {
-      console.log('❌ ERREUR: Token invalide ou expiré');
+      console.log('❌ [AUTH] Token invalide ou expiré');
       return res.status(403).json({ 
         success: false, 
         error: 'Token invalide ou expiré' 
       });
     }
 
-    console.log('✅ Authentification réussie pour:', user.email);
+    console.log('✅ [AUTH] Authentification réussie pour:', user.email);
     req.user = user;
     next();
   } catch (error) {
-    console.log('❌ ERREUR JWT:', error.message);
+    console.log('❌ [AUTH] Erreur JWT:', error.message);
     return res.status(403).json({ 
       success: false, 
       error: 'Token invalide' 
@@ -85,7 +85,7 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Logger
 app.use((req, res, next) => {
-  console.log(`📨 ${req.method} ${req.url}`);
+  console.log(`📨 [ROUTE] ${req.method} ${req.url}`);
   next();
 });
 
@@ -95,6 +95,7 @@ app.use('/uploads', express.static(uploadDir));
 
 // Routes d'authentification
 app.post('/api/auth/login', authController.login);
+app.post('/api/auth/register', authController.register); // ← AJOUTEZ CETTE LIGNE
 app.post('/api/auth/refresh', authController.refresh);
 app.post('/api/auth/logout', authController.logout);
 app.post('/api/auth/logout-all', authenticateToken, authController.logoutAll);
@@ -114,7 +115,7 @@ app.get('/api/health', (req, res) => {
 setInterval(() => {
   authService.cleanup();
   console.log('🧹 Nettoyage des tokens expirés effectué');
-}, 60 * 60 * 1000); // 1 heure
+}, 60 * 60 * 1000);
 
 // 404
 app.use((req, res) => {
@@ -137,6 +138,7 @@ app.listen(PORT, () => {
 ╠════════════════════════════════════════════════════════════╣
 ║  📍 API: http://localhost:${PORT}/api                      ║
 ║  🔐 Auth: JWT + Refresh Tokens (15m / 7j)                  ║
+║  📦 Storage: Local                                        ║
 ║  🏗️  Architecture: Service + Repository + Controller        ║
 ╚════════════════════════════════════════════════════════════╝
   `);

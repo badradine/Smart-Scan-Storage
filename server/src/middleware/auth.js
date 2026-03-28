@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken';
-import { getDatabase } from '../config/database.js';
+// ✅ Suppression de l'import getDatabase qui cause l'erreur
 
 /**
- * Middleware для проверки JWT токена
- * Защищает маршруты, требующие аутентификации
+ * Middleware pour vérifier le token JWT
+ * Protège les routes qui nécessitent une authentification
  */
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -11,73 +11,64 @@ export function authenticateToken(req, res, next) {
 
   if (!token) {
     return res.status(401).json({
-      error: 'Доступ запрещён',
-      message: 'Требуется токен аутентификации'
+      success: false,
+      error: 'Accès interdit',
+      message: 'Token d\'authentification requis'
     });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret-key');
+    const secret = process.env.JWT_SECRET || '12345';
+    const decoded = jwt.verify(token, secret);
     
-    // Проверяем, существует ли пользователь в базе
-    const db = getDatabase();
-    const user = db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(decoded.userId);
-
-    if (!user) {
-      return res.status(401).json({
-        error: 'Доступ запрещён',
-        message: 'Пользователь не найден'
-      });
-    }
-
-    // Добавляем информацию о пользователе в запрос
-    req.user = {
-      id: user.id,
-      email: user.email,
-      name: user.name
-    };
-
+    // ✅ Ajouter l'utilisateur décodé à la requête
+    req.user = decoded;
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
-        error: 'Токен истёк',
-        message: 'Пожалуйста, войдите снова'
+        success: false,
+        error: 'Token expiré',
+        message: 'Veuillez vous reconnecter'
       });
     }
 
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
-        error: 'Невалидный токен',
-        message: 'Токен повреждён или недействителен'
+        success: false,
+        error: 'Token invalide',
+        message: 'Token corrompu ou invalide'
       });
     }
 
-    console.error('Ошибка аутентификации:', error);
+    console.error('Erreur d\'authentification:', error);
     return res.status(500).json({
-      error: 'Ошибка сервера',
-      message: 'Не удалось проверить токен'
+      success: false,
+      error: 'Erreur serveur',
+      message: 'Impossible de vérifier le token'
     });
   }
 }
 
 /**
- * Middleware для проверки роли пользователя
- * @param {string[]} allowedRoles - Массив разрешённых ролей
+ * Middleware pour vérifier le rôle de l'utilisateur
+ * @param {string[]} allowedRoles - Tableau des rôles autorisés
  */
 export function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
-        error: 'Доступ запрещён',
-        message: 'Пользователь не аутентифицирован'
+        success: false,
+        error: 'Accès interdit',
+        message: 'Utilisateur non authentifié'
       });
     }
 
     if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
-        error: 'Доступ запрещён',
-        message: 'Недостаточно прав для выполнения операции'
+        success: false,
+        error: 'Accès interdit',
+        message: 'Privilèges insuffisants'
       });
     }
 
@@ -86,18 +77,18 @@ export function requireRole(...allowedRoles) {
 }
 
 /**
- * Генерация JWT токена
- * @param {object} payload - Данные для токена
- * @returns {string} JWT токен
+ * Génération d'un token JWT
+ * @param {object} payload - Données pour le token
+ * @returns {string} Token JWT
  */
 export function generateToken(payload) {
-  return jwt.sign(payload, process.env.JWT_SECRET || 'default-secret-key', {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-  });
+  const secret = process.env.JWT_SECRET || '12345';
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+  return jwt.sign(payload, secret, { expiresIn });
 }
 
 /**
- * Middleware для логирования запросов
+ * Middleware pour logger les requêtes
  */
 export function requestLogger(req, res, next) {
   const start = Date.now();

@@ -1,13 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { documentsApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
 function UploadPage() {
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({});
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('general');
   const [description, setDescription] = useState('');
@@ -80,20 +78,60 @@ function UploadPage() {
     setUploading(true);
 
     try {
+      const token = localStorage.getItem('accessToken');
+      console.log('🔑 Token utilisé:', token ? 'Présent' : 'Absent');
+      console.log('🔑 Token complet:', token);
+      
       const formData = new FormData();
       files.forEach(({ file }) => formData.append('files', file));
       formData.append('title', title || `Document du ${new Date().toLocaleDateString('fr-FR')}`);
       formData.append('category', category);
       formData.append('description', description);
 
-      const response = await documentsApi.create(formData);
+      console.log('📤 Envoi de', files.length, 'fichier(s)');
+      
+      // ✅ Utilisation de fetch direct pour plus de contrôle
+      const response = await fetch('http://localhost:3001/api/documents', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
 
-      if (response.data.success) {
-        success(`${response.data.data.pagesProcessed} page(s) uploadée(s) avec succès`);
+      console.log('📥 Status:', response.status);
+      console.log('📥 Headers:', response.headers);
+      
+      // Lire la réponse en texte pour voir ce que le serveur renvoie
+      const text = await response.text();
+      console.log('📥 Réponse brute:', text);
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('❌ La réponse n\'est pas du JSON:', text);
+        showError('Erreur de réponse du serveur');
+        setUploading(false);
+        return;
+      }
+
+      if (response.ok && data.success) {
+        success(`${data.data?.pagesProcessed || files.length} page(s) uploadée(s) avec succès`);
         navigate('/documents');
+      } else {
+        console.error('❌ Erreur serveur:', data);
+        if (response.status === 401) {
+          showError('Session expirée. Veuillez vous reconnecter.');
+          localStorage.clear();
+          navigate('/login');
+        } else {
+          showError(data.message || data.error || 'Erreur lors de l\'upload');
+        }
       }
     } catch (err) {
-      showError(err.response?.data?.message || 'Erreur lors de l\'upload des documents');
+      console.error('❌ Erreur réseau:', err);
+      showError('Erreur de connexion au serveur. Vérifiez que le serveur est démarré.');
     } finally {
       setUploading(false);
     }

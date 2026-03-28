@@ -22,54 +22,53 @@ const db = new Database(dbPath);
 // Activer les clés étrangères
 db.pragma('foreign_keys = ON');
 
-// ✅ FONCTION DE MIGRATION POUR AJOUTER LA COLONNE ROLE
+// ✅ FONCTION DE MIGRATION
 function migrateDatabase() {
   try {
     console.log('🔄 Vérification de la structure de la base de données...');
     
-    // Vérifier si la colonne role existe déjà
+    // 1. Vérifier la colonne role dans users
     const tableInfo = db.prepare("PRAGMA table_info(users)").all();
     const hasRoleColumn = tableInfo.some(col => col.name === 'role');
     
     if (!hasRoleColumn) {
       console.log('📦 Migration: Ajout de la colonne "role" à la table users...');
+      db.exec(`ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user';`);
       
-      // Ajouter la colonne role avec une valeur par défaut 'user'
-      db.exec(`
-        ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user';
-      `);
-      
-      // Définir un admin par défaut (si un utilisateur existe avec email admin)
-      const adminCheck = db.prepare(`
-        SELECT COUNT(*) as count FROM users WHERE email LIKE '%admin%' OR email = 'admin@example.com'
-      `).get();
-      
+      const adminCheck = db.prepare(`SELECT COUNT(*) as count FROM users WHERE email LIKE '%admin%' OR email = 'admin@example.com'`).get();
       if (adminCheck.count > 0) {
-        db.exec(`
-          UPDATE users SET role = 'admin' WHERE email LIKE '%admin%' OR email = 'admin@example.com';
-        `);
+        db.exec(`UPDATE users SET role = 'admin' WHERE email LIKE '%admin%' OR email = 'admin@example.com';`);
         console.log('👑 Rôle admin attribué aux comptes admin existants');
       }
-      
-      // Le reste des utilisateurs reste 'user' (valeur par défaut)
-      console.log('✅ Migration terminée avec succès');
+      console.log('✅ Migration role terminée');
     } else {
       console.log('✓ La colonne "role" existe déjà');
     }
     
-    // Vérifier s'il y a au moins un admin
-    const adminCount = db.prepare(`
-      SELECT COUNT(*) as count FROM users WHERE role = 'admin'
-    `).get();
+    // 2. Vérifier la colonne updated_at dans document_pages
+    const pagesTableInfo = db.prepare("PRAGMA table_info(document_pages)").all();
+    const hasUpdatedAt = pagesTableInfo.some(col => col.name === 'updated_at');
+    
+    if (!hasUpdatedAt) {
+      console.log('📦 Migration: Ajout de la colonne "updated_at" à document_pages...');
+      try {
+        db.exec(`ALTER TABLE document_pages ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP;`);
+        console.log('✅ Colonne updated_at ajoutée à document_pages');
+      } catch (error) {
+        console.log('⚠️ La colonne updated_at existe peut-être déjà:', error.message);
+      }
+    } else {
+      console.log('✓ La colonne "updated_at" existe déjà');
+    }
+    
+    // 3. Vérifier s'il y a au moins un admin
+    const adminCount = db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'admin'`).get();
     
     if (adminCount.count === 0) {
       console.log('⚠️ Aucun administrateur trouvé. Création d\'un admin par défaut...');
-      
-      // Créer un admin par défaut si aucun n'existe
       const hasUsers = db.prepare('SELECT COUNT(*) as count FROM users').get();
       
       if (hasUsers.count > 0) {
-        // Prendre le premier utilisateur comme admin
         const firstUser = db.prepare('SELECT id, email FROM users LIMIT 1').get();
         db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', firstUser.id);
         console.log(`👑 Utilisateur ${firstUser.email} promu administrateur`);
@@ -83,7 +82,7 @@ function migrateDatabase() {
 
 // Initialisation des tables
 export function initDatabase() {
-  // Table des utilisateurs (version avec rôle)
+  // Table des utilisateurs
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,7 +111,7 @@ export function initDatabase() {
     )
   `);
 
-  // Table des pages de document
+  // Table des pages de document (AVEC updated_at)
   db.exec(`
     CREATE TABLE IF NOT EXISTS document_pages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,11 +125,12 @@ export function initDatabase() {
       ocr_text TEXT,
       extracted_data TEXT DEFAULT '{}',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
     )
   `);
 
-  // Index pour accélérer les recherches
+  // Index
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
     CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
@@ -138,18 +138,16 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_document_pages_ocr_text ON document_pages(ocr_text);
   `);
 
-  // ✅ LANCER LA MIGRATION APRÈS LA CRÉATION DES TABLES
+  // Lancer la migration
   migrateDatabase();
 
-  // ✅ CRÉER UN SEUL UTILISATEUR ADMIN PAR DÉFAUT SI LA TABLE EST VIDE
+  // Créer un utilisateur admin par défaut
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
   
   if (userCount.count === 0) {
     console.log('⚙️ Création de l\'utilisateur admin par défaut...');
     
     const saltRounds = 10;
-    
-    // Créer UN SEUL admin
     const adminPassword = bcrypt.hashSync('admin123', saltRounds);
     const insertUser = db.prepare(`
       INSERT INTO users (email, password_hash, name, role) 
@@ -160,8 +158,6 @@ export function initDatabase() {
     
     console.log('✅ Utilisateur admin créé:');
     console.log('   - admin@example.com / admin123 (rôle: admin)');
-    console.log('');
-    console.log('ℹ️  Pour créer d\'autres utilisateurs, utilisez la page d\'inscription ou l\'interface admin.');
   }
 
   console.log('✓ Base de données SQLite initialisée');
@@ -169,42 +165,28 @@ export function initDatabase() {
   
   // Afficher la répartition des rôles
   try {
-    const roleStats = db.prepare(`
-      SELECT role, COUNT(*) as count 
-      FROM users 
-      GROUP BY role
-    `).all();
-    
+    const roleStats = db.prepare(`SELECT role, COUNT(*) as count FROM users GROUP BY role`).all();
     console.log('✓ Répartition des rôles:', roleStats);
   } catch (error) {
     console.log('✓ Répartition des rôles: à déterminer');
   }
 }
 
-// Obtenir l'instance de la base de données
 export function getDatabase() {
   return db;
 }
 
-// Fermer la connexion à la BDD
 export function closeDatabase() {
   db.close();
 }
 
-// Mettre à jour le rôle d'un utilisateur
 export function updateUserRole(userId, newRole) {
   const validRoles = ['admin', 'manager', 'user'];
-  
   if (!validRoles.includes(newRole)) {
-    throw new Error('Rôle invalide. Rôles acceptés: admin, manager, user');
+    throw new Error('Rôle invalide');
   }
   
-  const stmt = db.prepare(`
-    UPDATE users 
-    SET role = ?, updated_at = CURRENT_TIMESTAMP 
-    WHERE id = ?
-  `);
-  
+  const stmt = db.prepare(`UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`);
   const result = stmt.run(newRole, userId);
   
   if (result.changes === 0) {
@@ -214,40 +196,19 @@ export function updateUserRole(userId, newRole) {
   return { success: true, message: `Rôle mis à jour: ${newRole}` };
 }
 
-// Obtenir tous les utilisateurs avec leurs rôles
 export function getAllUsers() {
-  const stmt = db.prepare(`
-    SELECT id, email, name, role, created_at 
-    FROM users 
-    ORDER BY created_at DESC
-  `);
-  
-  return stmt.all();
+  return db.prepare(`SELECT id, email, name, role, created_at FROM users ORDER BY created_at DESC`).all();
 }
 
-// Obtenir un utilisateur par son ID
 export function getUserById(userId) {
-  const stmt = db.prepare(`
-    SELECT id, email, name, role, created_at 
-    FROM users 
-    WHERE id = ?
-  `);
-  
-  return stmt.get(userId);
+  return db.prepare(`SELECT id, email, name, role, created_at FROM users WHERE id = ?`).get(userId);
 }
 
-// Vérifier si un utilisateur a un rôle spécifique
 export function userHasRole(userId, requiredRole) {
   const user = getUserById(userId);
   if (!user) return false;
   
-  // Hiérarchie des rôles (admin > manager > user)
-  const roleHierarchy = {
-    'admin': 3,
-    'manager': 2,
-    'user': 1
-  };
-  
+  const roleHierarchy = { 'admin': 3, 'manager': 2, 'user': 1 };
   const userRoleLevel = roleHierarchy[user.role] || 0;
   const requiredRoleLevel = roleHierarchy[requiredRole] || 0;
   

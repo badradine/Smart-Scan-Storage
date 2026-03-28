@@ -1,21 +1,49 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';  // ← AJOUT useSearchParams
 import { documentsApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import LoadingSpinner from '../components/LoadingSpinner';
+import DocumentFilters from '../components/DocumentFilters';  // ← AJOUT
 
 function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
-  const [filters, setFilters] = useState({ status: '', category: '', search: '' });
+  const [searchParams, setSearchParams] = useSearchParams();  // ← AJOUT
   const [viewMode, setViewMode] = useState('grid');
+
+  // État des filtres avec tous les paramètres avancés
+  const [filters, setFilters] = useState({
+    search: '',
+    status: '',
+    category: '',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'created_at',
+    sortOrder: 'DESC'
+  });
 
   const { error: showError, success: showSuccess } = useToast();
 
+  // Charger les filtres depuis l'URL au démarrage
+  useEffect(() => {
+    const params = Object.fromEntries(searchParams);
+    setFilters(prev => ({ ...prev, ...params }));
+  }, []);
+
+  // Sauvegarder les filtres dans l'URL quand ils changent
+  useEffect(() => {
+    const cleanFilters = {};
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) cleanFilters[key] = value;
+    });
+    setSearchParams(cleanFilters);
+  }, [filters]);
+
+  // Recharger quand les filtres ou la page changent
   useEffect(() => {
     loadDocuments();
-  }, [filters.status, filters.category, filters.search, pagination.page]);
+  }, [filters, pagination.page]);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -23,9 +51,7 @@ function DocumentsPage() {
       const response = await documentsApi.getAll({
         page: pagination.page,
         limit: 12,
-        status: filters.status,
-        category: filters.category,
-        search: filters.search
+        ...filters  // ← TOUS les filtres sont envoyés
       });
 
       if (response.data.success) {
@@ -41,7 +67,6 @@ function DocumentsPage() {
   };
 
   const handleDelete = async (id) => {
-    // ✅ Message de confirmation en français
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
       return;
     }
@@ -50,22 +75,18 @@ function DocumentsPage() {
       const response = await documentsApi.delete(id);
       
       if (response.data && response.data.success) {
-        // ✅ Message de succès en français
         showSuccess('Document supprimé avec succès');
         
-        // Suppression immédiate
         setDocuments(prevDocuments => 
           prevDocuments.filter(doc => doc.id !== id)
         );
         
-        // Mise à jour de la pagination
         setPagination(prev => ({
           ...prev,
           total: prev.total - 1,
           pages: Math.ceil((prev.total - 1) / 12)
         }));
 
-        // Si dernier document de la page
         if (documents.length === 1 && pagination.page > 1) {
           setPagination(prev => ({ ...prev, page: prev.page - 1 }));
         }
@@ -76,17 +97,6 @@ function DocumentsPage() {
       console.error('Erreur suppression:', err);
       showError('Impossible de supprimer le document. Vérifiez votre connexion.');
     }
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPagination(prev => ({ ...prev, page: 1 }));
-    loadDocuments();
-  };
-
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const getCategoryLabel = (category) => {
@@ -108,72 +118,12 @@ function DocumentsPage() {
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Uploader un document
+          Ajouter un document
         </Link>
       </div>
 
-      {/* Filtres */}
-      <div className="card p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          <form onSubmit={handleSearch} className="flex-1">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Rechercher par titre..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="form-input pl-10"
-              />
-              <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </form>
-
-          <select
-            value={filters.status}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-            className="form-input w-full md:w-40"
-          >
-            <option value="">Tous les statuts</option>
-            <option value="ready">Prêts</option>
-            <option value="processing">En traitement</option>
-          </select>
-
-          <select
-            value={filters.category}
-            onChange={(e) => handleFilterChange('category', e.target.value)}
-            className="form-input w-full md:w-40"
-          >
-            <option value="">Toutes catégories</option>
-            <option value="general">Général</option>
-            <option value="invoice">Facture</option>
-            <option value="contract">Contrat</option>
-            <option value="report">Rapport</option>
-          </select>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-600'}`}
-              title="Vue en grille"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-600'}`}
-              title="Vue en liste"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* FILTRES AVANCÉS - NOUVEAU */}
+      <DocumentFilters filters={filters} onFilterChange={setFilters} />
 
       {/* Liste des documents */}
       {loading ? (
@@ -187,7 +137,7 @@ function DocumentsPage() {
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun document trouvé</h3>
           <p className="text-gray-500 mb-4">
-            {filters.search || filters.status || filters.category 
+            {filters.search || filters.status || filters.category || filters.dateFrom || filters.dateTo
               ? 'Essayez de modifier les filtres'
               : 'Uploadez votre premier document'}
           </p>
