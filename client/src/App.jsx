@@ -9,6 +9,7 @@ import DocumentDetailPage from './pages/DocumentDetailPage';
 import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import LoadingSpinner from './components/LoadingSpinner';
+import SEO from './components/SEO/SEO';
 
 function App() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -22,23 +23,31 @@ function App() {
   }
 
   return (
-    <Routes>
-      {/* Routes publiques */}
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />} />
+    <>
+      {/* SEO global pour toute l'application (fallback) */}
+      <SEO 
+        title="Smart Scan Storage"
+        description="Solution intelligente de gestion de documents avec OCR, recherche avancée et stockage sécurisé."
+      />
       
-      {/* Routes protégées */}
-      <Route element={<Layout />}>
-        <Route path="/" element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" replace />} />
-        <Route path="/documents" element={isAuthenticated ? <DocumentsPage /> : <Navigate to="/login" replace />} />
-        <Route path="/documents/:id" element={isAuthenticated ? <DocumentDetailPage /> : <Navigate to="/login" replace />} />
-        <Route path="/upload" element={isAuthenticated ? <UploadPage /> : <Navigate to="/login" replace />} />
-        <Route path="/search" element={isAuthenticated ? <SearchPage /> : <Navigate to="/login" replace />} />
-      </Route>
+      <Routes>
+        {/* Routes publiques */}
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />} />
+        <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />} />
+        
+        {/* Routes protégées */}
+        <Route element={<Layout />}>
+          <Route path="/" element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" replace />} />
+          <Route path="/documents" element={isAuthenticated ? <DocumentsPage /> : <Navigate to="/login" replace />} />
+          <Route path="/documents/:id" element={isAuthenticated ? <DocumentDetailPage /> : <Navigate to="/login" replace />} />
+          <Route path="/upload" element={isAuthenticated ? <UploadPage /> : <Navigate to="/login" replace />} />
+          <Route path="/search" element={isAuthenticated ? <SearchPage /> : <Navigate to="/login" replace />} />
+        </Route>
 
-      {/* 404 */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* 404 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 

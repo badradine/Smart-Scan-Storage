@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /register
+Disallow: /upload
+Disallow: /documents
+Disallow: /document/*
+Disallow: /search
+Disallow: /api/*
+
+Sitemap: http://localhost:5173/sitemap.xml
+Crawl-delay: 10

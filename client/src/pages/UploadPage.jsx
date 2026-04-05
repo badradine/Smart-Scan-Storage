@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import SEO from '../components/SEO/SEO';
 
 function UploadPage() {
   const [files, setFiles] = useState([]);
@@ -90,7 +91,6 @@ function UploadPage() {
 
       console.log('📤 Envoi de', files.length, 'fichier(s)');
       
-      // ✅ Utilisation de fetch direct pour plus de contrôle
       const response = await fetch('http://localhost:3001/api/documents', {
         method: 'POST',
         headers: {
@@ -102,7 +102,6 @@ function UploadPage() {
       console.log('📥 Status:', response.status);
       console.log('📥 Headers:', response.headers);
       
-      // Lire la réponse en texte pour voir ce que le serveur renvoie
       const text = await response.text();
       console.log('📥 Réponse brute:', text);
       
@@ -160,180 +159,188 @@ function UploadPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Uploader des documents</h1>
-        <p className="text-gray-500 mt-1">Uploadez des scans pour traitement OCR automatique</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Zone de drop */}
-        <div
-          className={`dropzone ${dragActive ? 'active' : ''} ${uploading ? 'opacity-50' : ''}`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          <input
-            type="file"
-            id="fileInput"
-            multiple
-            accept="image/jpeg,image/png,image/tiff,image/bmp,image/webp,application/pdf,.pdf,.doc,.docx"
-            onChange={handleFileSelect}
-            className="hidden"
-            disabled={uploading}
-          />
-          
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-            </div>
-            <p className="text-lg font-medium text-gray-700 mb-2">
-              Glissez-déposez vos fichiers ici ou cliquez pour sélectionner
-            </p>
-            <p className="text-sm text-gray-500">
-              Formats supportés : JPEG, PNG, TIFF, BMP, WebP, PDF, DOC, DOCX (max. 50MB/fichier)
-            </p>
-            <label
-              htmlFor="fileInput"
-              className="btn btn-primary mt-4 cursor-pointer"
-            >
-              Choisir des fichiers
-            </label>
-          </div>
+    <>
+      <SEO 
+        title="Upload de document"
+        description="Téléversez vos documents pour traitement OCR automatique"
+        noIndex={true}
+      />
+      
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Uploader des documents</h1>
+          <p className="text-gray-500 mt-1">Uploadez des scans pour traitement OCR automatique</p>
         </div>
 
-        {/* Liste des fichiers */}
-        {files.length > 0 && (
-          <div className="card p-4">
-            <h3 className="font-medium text-gray-900 mb-4">
-              Fichiers sélectionnés : {files.length}
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {files.map(({ id, file, preview }) => (
-                <div key={id} className="relative group">
-                  <div className="aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
-                    {preview ? (
-                      <img
-                        src={preview}
-                        alt={file.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center">
-                        {getFileIcon(file)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      type="button"
-                      onClick={() => removeFile(id)}
-                      className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"
-                      disabled={uploading}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1 truncate" title={file.name}>
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {(file.size / 1024).toFixed(1)} KB
-                  </p>
-                </div>
-              ))}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Zone de drop */}
+          <div
+            className={`dropzone ${dragActive ? 'active' : ''} ${uploading ? 'opacity-50' : ''}`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              id="fileInput"
+              multiple
+              accept="image/jpeg,image/png,image/tiff,image/bmp,image/webp,application/pdf,.pdf,.doc,.docx"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={uploading}
+            />
+            
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              </div>
+              <p className="text-lg font-medium text-gray-700 mb-2">
+                Glissez-déposez vos fichiers ici ou cliquez pour sélectionner
+              </p>
+              <p className="text-sm text-gray-500">
+                Formats supportés : JPEG, PNG, TIFF, BMP, WebP, PDF, DOC, DOCX (max. 50MB/fichier)
+              </p>
+              <label
+                htmlFor="fileInput"
+                className="btn btn-primary mt-4 cursor-pointer"
+              >
+                Choisir des fichiers
+              </label>
             </div>
           </div>
-        )}
 
-        {/* Métadonnées */}
-        <div className="card p-6 space-y-4">
-          <h3 className="font-medium text-gray-900">Informations du document</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Liste des fichiers */}
+          {files.length > 0 && (
+            <div className="card p-4">
+              <h3 className="font-medium text-gray-900 mb-4">
+                Fichiers sélectionnés : {files.length}
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {files.map(({ id, file, preview }) => (
+                  <div key={id} className="relative group">
+                    <div className="aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+                      {preview ? (
+                        <img
+                          src={preview}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center">
+                          {getFileIcon(file)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => removeFile(id)}
+                        className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"
+                        disabled={uploading}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 truncate" title={file.name}>
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {(file.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Métadonnées */}
+          <div className="card p-6 space-y-4">
+            <h3 className="font-medium text-gray-900">Informations du document</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="title" className="form-label">Titre</label>
+                <input
+                  type="text"
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="form-input"
+                  placeholder="Titre du document..."
+                  disabled={uploading}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="category" className="form-label">Catégorie</label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="form-input"
+                  disabled={uploading}
+                >
+                  <option value="general">Général</option>
+                  <option value="invoice">Facture</option>
+                  <option value="contract">Contrat</option>
+                  <option value="report">Rapport</option>
+                  <option value="other">Autre</option>
+                </select>
+              </div>
+            </div>
+
             <div>
-              <label htmlFor="title" className="form-label">Titre</label>
-              <input
-                type="text"
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="form-input"
-                placeholder="Titre du document..."
+              <label htmlFor="description" className="form-label">Description</label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="form-input min-h-[100px]"
+                placeholder="Informations complémentaires sur le document..."
                 disabled={uploading}
               />
             </div>
+          </div>
+
+          {/* Boutons */}
+          <div className="flex gap-4">
+            <button
+              type="submit"
+              disabled={uploading || files.length === 0}
+              className="btn btn-primary flex-1"
+            >
+              {uploading ? (
+                <>
+                  <div className="loading-spinner w-5 h-5"></div>
+                  Upload et traitement en cours...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Uploader et traiter
+                </>
+              )}
+            </button>
             
-            <div>
-              <label htmlFor="category" className="form-label">Catégorie</label>
-              <select
-                id="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="form-input"
-                disabled={uploading}
-              >
-                <option value="general">Général</option>
-                <option value="invoice">Facture</option>
-                <option value="contract">Contrat</option>
-                <option value="report">Rapport</option>
-                <option value="other">Autre</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="description" className="form-label">Description</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="form-input min-h-[100px]"
-              placeholder="Informations complémentaires sur le document..."
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="btn btn-secondary"
               disabled={uploading}
-            />
+            >
+              Annuler
+            </button>
           </div>
-        </div>
-
-        {/* Boutons */}
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={uploading || files.length === 0}
-            className="btn btn-primary flex-1"
-          >
-            {uploading ? (
-              <>
-                <div className="loading-spinner w-5 h-5"></div>
-                Upload et traitement en cours...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                Uploader et traiter
-              </>
-            )}
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="btn btn-secondary"
-            disabled={uploading}
-          >
-            Annuler
-          </button>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </>
   );
 }
 
