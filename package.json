@@ -1,7 +1,7 @@
 {
   "name": "smart-scan-storage",
   "version": "1.0.0",
-  "description": "Умное хранилище сканов с OCR, поиском и авто-склейкой страниц",
+  "description": "Smart Scan Storage with OCR, search and page stitching",
   "private": true,
   "workspaces": [
     "client",
@@ -12,9 +12,16 @@
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "install:all": "npm install && cd client && npm install && cd ../server && npm install",
-    "build": "cd client && npm run build"
+    "build": "cd client && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd server && npm test",
+    "test:frontend": "cd client && npm test",
+    "test:unit": "cd server && npm run test:unit && cd ../client && npm run test:unit",
+    "test:e2e": "npx playwright test",
+    "test:all": "npm run test:backend && npm run test:frontend && npm run test:e2e"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "concurrently": "^8.2.2"
   },
   "engines": {
