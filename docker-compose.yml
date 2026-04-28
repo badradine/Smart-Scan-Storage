@@ -1,0 +1,37 @@
+services:
+  backend:
+    build: ./server
+    container_name: smartscan-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      JWT_SECRET: secret12345
+      UPLOAD_DIR: ./uploads
+      NEWS_API_KEY:
+      BASE_URL: http://localhost
+    volumes:
+      - uploads_data:/app/uploads
+      - ./server/data:/app/data
+    ports:
+      - "3001:3001"
+    networks:
+      - smartscan-network
+
+  frontend:
+    build: ./client
+    container_name: smartscan-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - smartscan-network
+
+volumes:
+  uploads_data:
+
+networks:
+  smartscan-network:
+    driver: bridge
